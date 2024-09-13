@@ -26,6 +26,15 @@ class App < Roda
         # Extract parameters from the incoming request
         incoming_params = r.params
 
+        # Ensure all message roles that are not 'user' or 'assistant' are changed to 'user'
+        if incoming_params['messages'].is_a?(Array)
+          incoming_params['messages'].each do |message|
+            if message['role'] != 'user' && message['role'] != 'assistant'
+              message['role'] = 'user'
+            end
+          end
+        end
+
         # Extract only 'model' and 'messages' from the incoming parameters
         allowed_params = {
           'model' => incoming_params['model'],
