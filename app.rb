@@ -5,11 +5,11 @@ require 'logger'
 require 'net/http'
 require 'uri'
 require_relative 'config'
-# require 'byebug'
+#require 'byebug'
 
 # Initialize Logger
 LOGGER = Logger.new('proxy.log', 'daily') # Log rotation daily
-MAX_LOG_SIZE = 10 * 1024  # 10 KB
+MAX_LOG_SIZE = 1000 * 1024  # 1 MB
 
 class App < Roda
   plugin :json_parser  # Parses JSON request bodies and makes them available in r.params
@@ -69,55 +69,88 @@ class App < Roda
         request = Net::HTTP::Post.new(uri)
         request['Authorization'] = "Bearer #{ENV['OPENAI_API_KEY']}"
         request['Content-Type'] = 'application/json'
-        request.body = allowed_params.to_json
 
         # Check if 'stream' parameter is true
         if allowed_params['stream'] == true || allowed_params['stream'] == 'true'
-          # Streaming response
-          response_body = ''
+          # Remove 'stream' from allowed_params
+          allowed_params.delete('stream')
+          request.body = allowed_params.to_json
+
+          # Non-streaming request to OpenAI
+          openai_response = http.request(request)
+          response_body = openai_response.body
 
           # Now start the streaming process
           stream do |out|
             begin
-              # Send the request and get the response in a block
-              http.request(request) do |openai_response|
-                # Set the response status and headers before streaming begins
-                response.status = openai_response.code.to_i
+              # Set the response status and headers before streaming begins
+              response.status = openai_response.code.to_i
 
-                # Exclude 'Content-Length' and 'Transfer-Encoding' headers
-                excluded_headers = ['content-length', 'transfer-encoding']
-                openai_response.each_header do |key, value|
-                  unless excluded_headers.include?(key.downcase)
-                    response.headers[key] = value
-                  end
-                end
-
-                # Manually set 'Transfer-Encoding' to 'chunked' if necessary
-                response.headers['Transfer-Encoding'] = 'chunked'
-
-                # Log the response headers
-                LOGGER.info("Response Headers: #{response.headers.to_hash}")
-
-                # Stream the response body and accumulate for logging
-                openai_response.read_body do |chunk|
-                  out.write(chunk)
-                  if response_body.bytesize < MAX_LOG_SIZE
-                    response_body << chunk
-                  end
+              # Exclude 'Content-Length' and 'Transfer-Encoding' headers
+              excluded_headers = ['content-length', 'transfer-encoding']
+              openai_response.each_header do |key, value|
+                unless excluded_headers.include?(key.downcase)
+                  response.headers[key] = value
                 end
               end
+
+              # Manually set 'Transfer-Encoding' to 'chunked'
+              response.headers['Transfer-Encoding'] = 'chunked'
+              response.headers['Content-Type'] = "text/event-stream; charset=utf-8"
+
+              # Log the response headers
+              LOGGER.info("Response Headers: #{response.headers.to_hash}")
+
+              response_json = JSON.parse(response_body)
+
+              modified_response_data = [
+                {
+                  id: response_json['id'],
+                  object: "chat.completion.chunk",
+                  created: response_json['created'],
+                  model: response_json['model'],
+                  system_fingerprint: response_json['system_fingerprint'],
+                  choices: [
+                    { index: 0, delta: { role: "assistant", content: "", refusal: nil}, logprobs: nil, finish_reason: nil}
+                  ]
+                },
+                {
+                  id: response_json['id'],
+                  object: "chat.completion.chunk",
+                  created: response_json['created'],
+                  model: response_json['model'],
+                  system_fingerprint: response_json['system_fingerprint'],
+                  choices: [
+                    {index: 0, delta: { content:  response_json.dig("choices",0,"message","content") }, logprobs: nil, finish_reason: nil}
+                  ]
+                },
+                {
+                  id: response_json['id'],
+                  object: "chat.completion.chunk",
+                  created: response_json['created'],
+                  model: response_json['model'],
+                  system_fingerprint: response_json['system_fingerprint'],
+                  choices: [{index:0, delta:{}, logprobs: nil, finish_reason: "stop"}]
+                },
+                "[DONE]"
+              ]
+
+              modified_response_body = modified_response_data.map { |i| "data: #{i.to_json}" }.join("\r\n\r\n")
+
+              # Log the response body (trimmed if necessary)
+              if modified_response_body.bytesize >= MAX_LOG_SIZE
+                LOGGER.info("Response Body (truncated to #{MAX_LOG_SIZE} bytes): #{modified_response_body.byteslice(0, MAX_LOG_SIZE)}")
+              else
+                LOGGER.info("Response Body: #{modified_response_body}")
+              end
+
+              out.write(modified_response_body)
+              out.write("\r\n\r\n")
             rescue StandardError => e
               # Log the error
               LOGGER.error("Streaming Error: #{e.message}")
               # Optionally, write an error message to the client
               out.write("data: {\"error\": \"#{e.message}\"}\n\n")
-            end
-
-            # After streaming, log the response body (trimmed if necessary)
-            if response_body.bytesize >= MAX_LOG_SIZE
-              LOGGER.info("Response Body (truncated to #{MAX_LOG_SIZE} bytes): #{response_body.byteslice(0, MAX_LOG_SIZE)}")
-            else
-              LOGGER.info("Response Body: #{response_body}")
             end
           end
 
@@ -125,6 +158,8 @@ class App < Roda
           nil
         else
           # Non-streaming response
+          request.body = allowed_params.to_json
+
           # Send the request and get the response
           openai_response = http.request(request)
 
