@@ -8,8 +8,8 @@ class App < Roda
   plugin :json        # Automatically serializes hashes to JSON responses
 
   route do |r|
-    # POST /v1/chat/completion
-    r.post 'v1/chat/completion' do
+    # POST /v1/chat/completions
+    r.post 'v1/chat/completions' do
       client = OpenAI::Client.new
 
       begin
