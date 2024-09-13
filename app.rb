@@ -2,6 +2,7 @@
 require 'roda'
 require 'json'
 require 'logger'
+require 'faraday'
 require_relative 'config'
 
 class App < Roda
@@ -13,8 +14,6 @@ class App < Roda
   route do |r|
     # POST /v1/chat/completions
     r.post 'v1/chat/completions' do
-      client = OpenAI::Client.new
-
       begin
         # Extract only 'model' and 'messages' from the incoming parameters
         allowed_params = {
@@ -39,27 +38,35 @@ class App < Roda
         # Log the input
         LOGGER.info("Request Params: #{allowed_params.to_json}")
 
-        # Forward the filtered parameters to OpenAI's API
-        openai_response = client.chat(parameters: allowed_params)
+        # Set up Faraday client
+        conn = Faraday.new(url: 'https://api.openai.com') do |faraday|
+          faraday.request :json
+          faraday.response :logger, LOGGER  # Optional: Logs Faraday request/response
+          faraday.adapter Faraday.default_adapter
+        end
 
-        # Extract the status code from the HTTP response
-        status_code = openai_response.dig("status") || 200  # Default to 200 if no status is present
+        # Make the request to OpenAI API
+        openai_response = conn.post('/v1/chat/completions') do |req|
+          req.headers['Authorization'] = "Bearer #{ENV['OPENAI_API_KEY']}"
+          req.headers['Content-Type'] = 'application/json'
+          req.body = allowed_params.to_json
+        end
 
         # Set the response status code and headers
-        response.status = status_code
+        response.status = openai_response.status
         response['Content-Type'] = 'application/json'
 
         # Get the response body
-        response_body = openai_response.to_json
+        response_body = openai_response.body
 
         # Log the output
         LOGGER.info("Response: #{response_body}")
 
         # Return the OpenAI API response body
         response_body
-      rescue OpenAI::Error => e
+      rescue Faraday::Error => e
         # Set the HTTP status code to match the error, default to 500
-        response.status = e.respond_to?(:http_code) ? e.http_code : 500
+        response.status = 500
         response['Content-Type'] = 'application/json'
 
         # Error message
