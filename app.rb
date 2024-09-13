@@ -42,12 +42,15 @@ class App < Roda
         # Forward the filtered parameters to OpenAI's API
         openai_response = client.chat(parameters: allowed_params)
 
+        # Extract the status code from the HTTP response
+        status_code = openai_response.dig("status") || 200  # Default to 200 if no status is present
+
         # Set the response status code and headers
-        response.status = openai_response.status
+        response.status = status_code
         response['Content-Type'] = 'application/json'
 
         # Get the response body
-        response_body = openai_response.body
+        response_body = openai_response.to_json
 
         # Log the output
         LOGGER.info("Response: #{response_body}")
