@@ -3,9 +3,10 @@
 `openai-o1-proxy` is a simple web proxy designed to relay requests between a client and the OpenAI API's chat completions endpoint. 
 It is specifically desigend for new OpenAI models: `o1-preview` and `o1-mini` as they are not fully compatibile with OpenAI completion API.
 
-This proxy addresses two main issues of o1 models:
+This proxy addresses three main issues of o1 models:
 1. Lack of streaming capability - entire response is streamed back if the `stream` param was set to true. This enables using OpenAI new models in `Continue` IDE plugin
 2. Handling only `user` and `assistant` roles.
+3. Parameters like `temperature` or `top_p` are fixed and removed from API.
 
 ## Features
 
