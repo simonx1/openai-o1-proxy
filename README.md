@@ -78,7 +78,7 @@ In case of an error during processing, the proxy will return a JSON error messag
 ## `Continue` IDE plugin config
 ```bash
     {
-      "model": "gpt-4o-mini",
+      "model": "o1-mini",
       "title": "ChatGPT o1 Mini",
       "provider": "openai",
       "apiKey": "none",
