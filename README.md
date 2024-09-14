@@ -1,9 +1,9 @@
-Sure! Here’s an updated version of the `README.md` for the `openai-proxy` project based on the provided `app.rb` content. This will include a brief description, installation instructions, usage details, and information about logging.
+`openai-o1-proxy` is a simple web proxy designed to relay requests between a client and the OpenAI API's chat completions endpoint. 
+It is specifically desigend for new OpenAI models: `o1-preview` and `o1-mini` as they are not fully compatibile with OpenAI completion API.
 
-```markdown
-# openai-proxy
-
-`openai-proxy` is a simple web proxy designed to relay requests between a client and the OpenAI API's chat completions endpoint. It provides a controlled interface, handling specific input validation and response processing, making it suitable for managing requests more effectively.
+This proxy addresses two main issues of o1 models:
+1. Lack of streaming capability - entire response is streamed back if the `stream` param was set to true. This enables using OpenAI new models in `Continue` IDE plugin
+2. Handling only `user` and `assistant` roles.
 
 ## Features
 
@@ -18,7 +18,7 @@ To get started with `openai-proxy`, first clone the repository:
 
 ```bash
 git clone <repository-url>
-cd openai-proxy
+cd openai-o1-proxy
 ```
 
 Next, install the required gems:
@@ -38,7 +38,7 @@ export OPENAI_API_KEY='your_openai_api_key'
 To run the proxy server, execute the following command:
 
 ```bash
-ruby app.rb
+puma -p 4567
 ```
 
 The server will start and listen for incoming requests. You can make POST requests to the `/v1/chat/completions` endpoint, which should include a JSON payload containing the required parameters `model` and `messages`.
@@ -49,7 +49,7 @@ The server will start and listen for incoming requests. You can make POST reques
 curl -X POST http://localhost:4567/v1/chat/completions \
 -H "Content-Type: application/json" \
 -d '{
-  "model": "gpt-3.5-turbo",
+  "model": "o1-mini",
   "messages": [{"role": "user", "content": "Hello, how are you?"}],
   "stream": true
 }'
@@ -73,9 +73,18 @@ tail -f proxy.log
 
 In case of an error during processing, the proxy will return a JSON error message with status code `500` and log detailed error information, including the request parameters and headers.
 
+## `Continue` IDE plugin config
+```bash
+    {
+      "model": "gpt-4o-mini",
+      "title": "ChatGPT o1 Mini",
+      "provider": "openai",
+      "apiKey": "none",
+      "useLegacyCompletionsEndpoint": false,
+      "apiBase": "http://0.0.0.0:4567/v1"
+    },
+```
+
 ## License
 
 This project is licensed under the MIT License.
-```
-
-Feel free to modify any sections to better fit your project's needs!
