@@ -1,3 +1,5 @@
+## OpenAI o1 proxy
+
 `openai-o1-proxy` is a simple web proxy designed to relay requests between a client and the OpenAI API's chat completions endpoint. 
 It is specifically desigend for new OpenAI models: `o1-preview` and `o1-mini` as they are not fully compatibile with OpenAI completion API.
 
