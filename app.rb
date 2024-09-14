@@ -74,6 +74,11 @@ class App < Roda
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
 
+        # Set the timeouts to the desired value (e.g., 600 seconds)
+        http.open_timeout = 600  # Open timeout in seconds
+        http.read_timeout = 600  # Read timeout in seconds
+        http.write_timeout = 600 # Write timeout in seconds
+
         # Prepare the HTTP request
         request = Net::HTTP::Post.new(uri)
         request['Authorization'] = "Bearer #{ENV['OPENAI_API_KEY']}"
@@ -130,7 +135,7 @@ class App < Roda
                   model: response_json['model'],
                   system_fingerprint: response_json['system_fingerprint'],
                   choices: [
-                    {index: 0, delta: { content:  response_json.dig("choices",0,"message","content") }, logprobs: nil, finish_reason: nil}
+                    { index: 0, delta: { content: response_json.dig("choices", 0, "message", "content") }, logprobs: nil, finish_reason: nil }
                   ]
                 },
                 {
@@ -139,7 +144,7 @@ class App < Roda
                   created: response_json['created'],
                   model: response_json['model'],
                   system_fingerprint: response_json['system_fingerprint'],
-                  choices: [{index:0, delta:{}, logprobs: nil, finish_reason: "stop"}]
+                  choices: [{ index: 0, delta: {}, logprobs: nil, finish_reason: "stop" }]
                 },
                 "[DONE]"
               ]
