@@ -8,6 +8,9 @@ This proxy addresses three main issues of o1 models:
 2. Handling only `user` and `assistant` roles.
 3. Parameters like `temperature` or `top_p` are fixed and removed from API.
 
+Full list of beta limitations:
+[OpenAI Reasoning Guide - Beta Limitations](https://platform.openai.com/docs/guides/reasoning/beta-limitations)
+
 ## Features
 
 - **Request Validation:** Ensures that required parameters are present and modifies specific message roles for compliance.
