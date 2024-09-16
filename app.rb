@@ -149,7 +149,7 @@ class App < Roda
                 "[DONE]"
               ]
 
-              modified_response_body = modified_response_data.map { |i| "data: #{i.to_json}" }.join("\r\n\r\n")
+              modified_response_body = modified_response_data.map { |i| "data: #{i.is_a?(Hash) ? i.to_json : i}" }.join("\r\n\r\n")
 
               # Log the response body (trimmed if necessary)
               if modified_response_body.bytesize >= MAX_LOG_SIZE
